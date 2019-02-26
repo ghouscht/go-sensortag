@@ -35,7 +35,6 @@ func (tag *SensorTag) NewSensor(uuid UUID) (*Sensor, error) {
 		data:   data,
 		period: period,
 	}, nil
-
 }
 
 func (s *Sensor) Read() ([]byte, error) {

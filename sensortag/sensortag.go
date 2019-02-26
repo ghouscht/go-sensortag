@@ -14,6 +14,7 @@ type SensorTag struct {
 	Humidity    *Sensor
 	Barometer   *Sensor
 	Optical     *Sensor
+	IO          *InputOutput
 }
 
 // New creates and initializes a new SensorTag instance
@@ -48,6 +49,12 @@ func New(dev *api.Device) (*SensorTag, error) {
 		return nil, errors.Wrap(err, "failed to initialize optical sensor")
 	}
 	tag.Optical = opticalSensor
+
+	io, err := tag.NewIO(io)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize io")
+	}
+	tag.IO = io
 
 	return tag, nil
 }
