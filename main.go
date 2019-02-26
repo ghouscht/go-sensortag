@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/ghouscht/go-sensortag/sensortag"
+	"github.com/ghouscht/go-sensortag/sensortag/conversion"
 	"github.com/muka/go-bluetooth/api"
 	"github.com/pkg/errors"
 )
@@ -34,16 +36,38 @@ func main() {
 		log.Fatal(errors.Wrap(err, "failed to create sensortag instance"))
 	}
 
-	temp, err := sensorTag.Temperature.Read()
-	if err != nil {
-		log.Fatal(err)
+	for {
+		temp, err := sensorTag.Temperature.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		hum, err := sensorTag.Humidity.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		baro, err := sensorTag.Barometer.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		optical, err := sensorTag.Optical.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("Temp: %f°C\n", conversion.AmbientDegreeCelsius(temp))
+		fmt.Printf("Object Temp: %f°C\n", conversion.ObjectDegreeCelsius(temp))
+		fmt.Printf("Humidity: %f%%\n", conversion.HumidityRelative(hum))
+		fmt.Printf("Humidity Temp: %f°C\n", conversion.HumidityDegreeCelsius(hum))
+		fmt.Printf("Pressure: %fhPa\n", conversion.BarometerPressure(baro))
+		fmt.Printf("Optical: %#vLux\n", conversion.OpticalLux(optical))
+
+		time.Sleep(3 * time.Second)
 	}
 
-	fmt.Printf("Temp: %f°C\n", sensortag.DegreeCelsius(temp))
-
-	/*
-		if err := dev.Disconnect(); err != nil {
-			log.Fatal(errors.Wrap(err, "failed to disconnect"))
-		}
-	*/
+	if err := dev.Disconnect(); err != nil {
+		log.Fatal(errors.Wrap(err, "failed to disconnect"))
+	}
 }

@@ -3,9 +3,7 @@ package sensortag
 import (
 	"fmt"
 
-	"github.com/godbus/dbus"
 	"github.com/muka/go-bluetooth/api"
-	"github.com/muka/go-bluetooth/bluez/profile"
 	"github.com/pkg/errors"
 )
 
@@ -13,6 +11,9 @@ import (
 type SensorTag struct {
 	device      *api.Device
 	Temperature *Sensor
+	Humidity    *Sensor
+	Barometer   *Sensor
+	Optical     *Sensor
 }
 
 // New creates and initializes a new SensorTag instance
@@ -24,51 +25,29 @@ func New(dev *api.Device) (*SensorTag, error) {
 	}
 
 	tag.device = dev
-	tempSensor, err := tag.newTemperatureSensor()
+	tempSensor, err := tag.NewSensor(temperature)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize temperature sensor")
 	}
 	tag.Temperature = tempSensor
 
-	return tag, nil
-}
-
-// Sensor represents a sensor gatt configuration
-type Sensor struct {
-	cfg    *profile.GattCharacteristic1
-	data   *profile.GattCharacteristic1
-	period *profile.GattCharacteristic1
-}
-
-func (s *Sensor) Read() ([]byte, error) {
-	if err := s.enable(); err != nil {
-		return nil, err
-	}
-
-	options := make(map[string]dbus.Variant)
-	b, err := s.data.ReadValue(options)
+	humiditySensor, err := tag.NewSensor(humidity)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to initialize humidity sensor")
 	}
+	tag.Humidity = humiditySensor
 
-	// disable sensor again to save energy
-	s.disable()
-
-	return b, nil
-}
-
-func (s *Sensor) enable() error {
-	options := make(map[string]dbus.Variant)
-	if err := s.cfg.WriteValue([]byte{1}, options); err != nil {
-		return errors.Wrap(err, "failed to enable")
+	baroSensor, err := tag.NewSensor(barometer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize barometer sensor")
 	}
-	return nil
-}
+	tag.Barometer = baroSensor
 
-func (s *Sensor) disable() error {
-	options := make(map[string]dbus.Variant)
-	if err := s.cfg.WriteValue([]byte{0}, options); err != nil {
-		return errors.Wrap(err, "failed to disable")
+	opticalSensor, err := tag.NewSensor(optical)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize optical sensor")
 	}
-	return nil
+	tag.Optical = opticalSensor
+
+	return tag, nil
 }
