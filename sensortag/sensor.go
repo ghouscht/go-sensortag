@@ -1,20 +1,29 @@
 package sensortag
 
 import (
+	"strings"
+
+	"github.com/ghouscht/go-sensortag/uuid"
 	"github.com/godbus/dbus"
 	"github.com/muka/go-bluetooth/bluez/profile"
 	"github.com/pkg/errors"
 )
 
-// Sensor represents a sensor gatt configuration
-type Sensor struct {
+type sensorConfig struct {
 	cfg    *profile.GattCharacteristic1
 	data   *profile.GattCharacteristic1
 	period *profile.GattCharacteristic1
 }
 
-// NewSensor returns an initialized sensor.
-func (tag *SensorTag) NewSensor(uuid UUID) (*Sensor, error) {
+type Sensor interface {
+	SetPeriod([]byte) error
+	StartNotify() (chan float64, error)
+}
+
+type conversionFunc func([]byte) float64
+
+// NewSensorConfig returns a pointer to an initialized sensor config.
+func (tag *SensorTag) NewSensorConfig(uuid uuid.UUID) (*sensorConfig, error) {
 	cfg, err := tag.device.GetCharByUUID(uuid.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get config characteristic")
@@ -30,31 +39,71 @@ func (tag *SensorTag) NewSensor(uuid UUID) (*Sensor, error) {
 		return nil, errors.Wrap(err, "failed to get period characteristic")
 	}
 
-	return &Sensor{
+	return &sensorConfig{
 		cfg:    cfg,
 		data:   data,
 		period: period,
 	}, nil
 }
 
-func (s *Sensor) Read() ([]byte, error) {
+func (s *sensorConfig) notify(conversion conversionFunc, service string) (chan float64, error) {
+	data := make(chan float64)
+	// enable the sensor
 	if err := s.enable(); err != nil {
 		return nil, err
 	}
 
-	options := make(map[string]dbus.Variant)
-	b, err := s.data.ReadValue(options)
+	// get the data channel
+	events, err := s.data.Register()
 	if err != nil {
 		return nil, err
 	}
 
-	// disable sensor again to save energy
-	s.disable()
+	go func() {
+		for event := range events {
+			// the events channel always returns all notifications (also those from sensors handled
+			// by a different goroutine) that's why we need to match agains the service name...
+			if !strings.Contains(string(event.Path), service) {
+				continue
+			}
 
-	return b, nil
+			if event == nil {
+				// terminate
+				close(data)
+				return
+			}
+
+			if len(event.Body) < 1 {
+				continue
+			}
+
+			body, ok := event.Body[1].(map[string]dbus.Variant)
+			if !ok {
+				continue
+			}
+
+			if _, ok := body["Value"]; !ok {
+				continue
+			}
+
+			rawData := body["Value"].Value().([]byte)
+			data <- conversion(rawData)
+		}
+	}()
+
+	// start notifying
+	return data, s.data.StartNotify()
 }
 
-func (s *Sensor) enable() error {
+func (s *sensorConfig) setPeriod(period []byte) error {
+	options := make(map[string]dbus.Variant)
+	if err := s.period.WriteValue(period, options); err != nil {
+		return errors.Wrap(err, "failed to set period")
+	}
+	return nil
+}
+
+func (s *sensorConfig) enable() error {
 	options := make(map[string]dbus.Variant)
 	if err := s.cfg.WriteValue([]byte{1}, options); err != nil {
 		return errors.Wrap(err, "failed to enable")
@@ -62,7 +111,7 @@ func (s *Sensor) enable() error {
 	return nil
 }
 
-func (s *Sensor) disable() error {
+func (s *sensorConfig) disable() error {
 	options := make(map[string]dbus.Variant)
 	if err := s.cfg.WriteValue([]byte{0}, options); err != nil {
 		return errors.Wrap(err, "failed to disable")
