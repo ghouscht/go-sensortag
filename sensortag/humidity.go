@@ -12,15 +12,23 @@ type Humidity struct {
 var _ Sensor = &Humidity{}
 
 func NewHumidity(s *sensorConfig) *Humidity {
+	s.name = "Humidity"
+	s.unit = "%"
+
 	return &Humidity{s}
 }
 
-func (t *Humidity) SetPeriod(period []byte) error {
-	return t.setPeriod(period)
-}
+func (h *Humidity) StartNotify(period []byte) (chan SensorEvent, error) {
+	if err := h.setPeriod(period); err != nil {
+		return nil, err
+	}
 
-func (t *Humidity) StartNotify() (chan float64, error) {
-	return t.notify(humidityRelative, "service002a/char002b") //TODO
+	// enable the sensor
+	if err := h.enable(); err != nil {
+		return nil, err
+	}
+
+	return h.notify(humidityRelative)
 }
 
 // converts the raw humidity value into a percent value

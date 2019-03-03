@@ -13,15 +13,23 @@ type Optical struct {
 var _ Sensor = &Optical{}
 
 func NewOptical(s *sensorConfig) *Optical {
+	s.name = "AmbientLight"
+	s.unit = "Lux"
+
 	return &Optical{s}
 }
 
-func (t *Optical) SetPeriod(period []byte) error {
-	return t.setPeriod(period)
-}
+func (o *Optical) StartNotify(period []byte) (chan SensorEvent, error) {
+	if err := o.setPeriod(period); err != nil {
+		return nil, err
+	}
 
-func (t *Optical) StartNotify() (chan float64, error) {
-	return t.notify(opticalLux, "service0042/char0043") //TODO: discover service
+	// enable the sensor
+	if err := o.enable(); err != nil {
+		return nil, err
+	}
+
+	return o.notify(opticalLux)
 }
 
 // converts the raw optical value into a lux value

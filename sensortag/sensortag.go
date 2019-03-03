@@ -11,12 +11,14 @@ import (
 
 // SensorTag is the data structure to represent a TI Sensortag.
 type SensorTag struct {
-	device      *api.Device
+	device *api.Device
+
 	Temperature Sensor
 	Humidity    Sensor
 	Barometer   Sensor
 	Optical     Sensor
-	IO          InputOutput
+
+	IO InputOutput
 }
 
 // New creates and initializes a new SensorTag instance
@@ -48,6 +50,12 @@ func New(dev *api.Device) (*SensorTag, error) {
 	}
 	tag.Optical = NewOptical(optSensor)
 
+	baroSensor, err := tag.NewSensorConfig(uuid.Barometer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize pressure sensor")
+	}
+	tag.Barometer = NewBarometer(baroSensor)
+
 	// i/o is a bit special...
 	io, err := tag.NewIO(uuid.IO)
 	if err != nil {
@@ -55,5 +63,11 @@ func New(dev *api.Device) (*SensorTag, error) {
 	}
 	tag.IO = io
 
-	return tag, nil
+	return tag, err
 }
+
+/*
+func (tag *SensorTag) GetNotifications() (chan dbus.Signal, error) {
+
+}
+*/

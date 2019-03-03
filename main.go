@@ -1,14 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/ghouscht/go-sensortag/sensortag"
 	"github.com/muka/go-bluetooth/api"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+)
+
+var (
+	log *zap.SugaredLogger
 )
 
 func main() {
@@ -18,7 +24,7 @@ func main() {
 		panic(err)
 	}
 	defer logger.Sync() // flushes buffer, if any
-	log := logger.Sugar()
+	log = logger.Sugar()
 
 	if len(os.Args) < 2 {
 		log.Fatal("missing tag address as argument")
@@ -26,7 +32,7 @@ func main() {
 	tagAddr := os.Args[1]
 
 	stopC := make(chan os.Signal, 1)
-	signal.Notify(stopC, os.Interrupt)
+	signal.Notify(stopC, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM)
 
 	log.Infow(
 		"connecting...",
@@ -63,42 +69,39 @@ func main() {
 	}
 
 	// Sensors
-	if err := sensorTag.Temperature.SetPeriod([]byte{0xFF}); err != nil {
-		log.Fatal(errors.Wrap(err, "failed to set period for temperature reading"))
-	}
+	period := []byte{0xFF} // == 2.5s
 
-	tempC, err := sensorTag.Temperature.StartNotify()
+	tempC, err := sensorTag.Temperature.StartNotify(period)
 	if err != nil {
-		panic(err)
+		log.Fatal(errors.Wrap(err, "failed to enable notifications for temperature sensor"))
 	}
 
-	if err := sensorTag.Humidity.SetPeriod([]byte{0xFF}); err != nil {
-		log.Fatal(errors.Wrap(err, "failed to set period for humidity reading"))
-	}
-
-	humC, err := sensorTag.Humidity.StartNotify()
+	humC, err := sensorTag.Humidity.StartNotify(period)
 	if err != nil {
-		panic(err)
+		log.Fatal(errors.Wrap(err, "failed to enable notifications for humidity sensor"))
 	}
 
-	if err := sensorTag.Optical.SetPeriod([]byte{0xFF}); err != nil {
-		log.Fatal(errors.Wrap(err, "failed to set period for humidity reading"))
-	}
-
-	optC, err := sensorTag.Optical.StartNotify()
+	optC, err := sensorTag.Optical.StartNotify(period)
 	if err != nil {
-		panic(err)
+		log.Fatal(errors.Wrap(err, "failed to enable notifications for humidity sensor"))
+	}
+
+	baroC, err := sensorTag.Barometer.StartNotify(period)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "failed to enable notifications for barometer sensor"))
 	}
 
 main:
 	for {
 		select {
 		case t := <-tempC:
-			fmt.Printf("The current ambient temperature is: %f °C\n", t)
+			printData(t)
 		case h := <-humC:
-			fmt.Printf("The current humidity is: %f %%\n", h)
+			printData(h)
 		case o := <-optC:
-			fmt.Printf("The current ambient light is: %f Lux\n", o)
+			printData(o)
+		case b := <-baroC:
+			printData(b)
 		case <-stopC:
 			log.Infow(
 				"disconnecting...",
@@ -110,5 +113,13 @@ main:
 			}
 			break main
 		}
+	}
+}
+
+func printData(data interface{}) {
+	if output, err := json.Marshal(data); err != nil {
+		log.Error(err)
+	} else {
+		fmt.Println(string(output))
 	}
 }

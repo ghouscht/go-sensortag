@@ -1,8 +1,6 @@
 package sensortag
 
 import (
-	"strings"
-
 	"github.com/ghouscht/go-sensortag/uuid"
 	"github.com/godbus/dbus"
 	"github.com/muka/go-bluetooth/bluez/profile"
@@ -10,14 +8,25 @@ import (
 )
 
 type sensorConfig struct {
+	name string
+	unit string
+
 	cfg    *profile.GattCharacteristic1
 	data   *profile.GattCharacteristic1
 	period *profile.GattCharacteristic1
 }
 
+// Sensor is an interface for sensortag sensors.
 type Sensor interface {
-	SetPeriod([]byte) error
-	StartNotify() (chan float64, error)
+	StartNotify([]byte) (chan SensorEvent, error)
+	//EnableNotify([]byte) error
+}
+
+// SensorEvent ...
+type SensorEvent struct {
+	Name  string  `json:"name"`
+	Unit  string  `json:"unit"`
+	Value float64 `json:"value"`
 }
 
 type conversionFunc func([]byte) float64
@@ -46,11 +55,11 @@ func (tag *SensorTag) NewSensorConfig(uuid uuid.UUID) (*sensorConfig, error) {
 	}, nil
 }
 
-func (s *sensorConfig) notify(conversion conversionFunc, service string) (chan float64, error) {
-	data := make(chan float64)
-	// enable the sensor
-	if err := s.enable(); err != nil {
-		return nil, err
+func (s *sensorConfig) notify(conversion conversionFunc) (chan SensorEvent, error) {
+	dataC := make(chan SensorEvent)
+
+	if err := s.data.StartNotify(); err != nil {
+		return nil, errors.Wrap(err, "failed to start notifications")
 	}
 
 	// get the data channel
@@ -61,16 +70,16 @@ func (s *sensorConfig) notify(conversion conversionFunc, service string) (chan f
 
 	go func() {
 		for event := range events {
-			// the events channel always returns all notifications (also those from sensors handled
-			// by a different goroutine) that's why we need to match agains the service name...
-			if !strings.Contains(string(event.Path), service) {
-				continue
-			}
-
 			if event == nil {
 				// terminate
-				close(data)
+				close(dataC)
 				return
+			}
+
+			// the events channel always returns all notifications (also those from sensors handled
+			// by a different goroutine) that's why we need to match against the service name...
+			if string(event.Path) != s.data.Path {
+				continue
 			}
 
 			if len(event.Body) < 1 {
@@ -87,12 +96,17 @@ func (s *sensorConfig) notify(conversion conversionFunc, service string) (chan f
 			}
 
 			rawData := body["Value"].Value().([]byte)
-			data <- conversion(rawData)
+
+			dataC <- SensorEvent{
+				Name:  s.name,
+				Unit:  s.unit,
+				Value: conversion(rawData),
+			}
 		}
 	}()
 
 	// start notifying
-	return data, s.data.StartNotify()
+	return dataC, nil
 }
 
 func (s *sensorConfig) setPeriod(period []byte) error {
@@ -105,7 +119,7 @@ func (s *sensorConfig) setPeriod(period []byte) error {
 
 func (s *sensorConfig) enable() error {
 	options := make(map[string]dbus.Variant)
-	if err := s.cfg.WriteValue([]byte{1}, options); err != nil {
+	if err := s.cfg.WriteValue([]byte{0x1}, options); err != nil {
 		return errors.Wrap(err, "failed to enable")
 	}
 	return nil
@@ -113,7 +127,7 @@ func (s *sensorConfig) enable() error {
 
 func (s *sensorConfig) disable() error {
 	options := make(map[string]dbus.Variant)
-	if err := s.cfg.WriteValue([]byte{0}, options); err != nil {
+	if err := s.cfg.WriteValue([]byte{0x0}, options); err != nil {
 		return errors.Wrap(err, "failed to disable")
 	}
 	return nil

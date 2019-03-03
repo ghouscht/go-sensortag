@@ -10,6 +10,7 @@ type InputOutput struct {
 	*sensorConfig
 }
 
+// NewIO returns an InputOutput object to control a SensorTags LEDs. buzzer etc.
 func (tag *SensorTag) NewIO(uuid uuid.UUID) (InputOutput, error) {
 	io := InputOutput{}
 
@@ -31,6 +32,7 @@ func (tag *SensorTag) NewIO(uuid uuid.UUID) (InputOutput, error) {
 	return InputOutput{configuration}, nil
 }
 
+// Write enables/disables I/Os
 func (io *InputOutput) Write(data []byte) error {
 	options := make(map[string]dbus.Variant)
 	if err := io.data.WriteValue(data, options); err != nil {

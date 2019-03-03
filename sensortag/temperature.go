@@ -12,15 +12,23 @@ type Temperature struct {
 var _ Sensor = &Temperature{}
 
 func NewTemperature(s *sensorConfig) *Temperature {
+	s.name = "AmbientTemperature"
+	s.unit = "°C"
+
 	return &Temperature{s}
 }
 
-func (t *Temperature) SetPeriod(period []byte) error {
-	return t.setPeriod(period)
-}
+func (t *Temperature) StartNotify(period []byte) (chan SensorEvent, error) {
+	if err := t.setPeriod(period); err != nil {
+		return nil, err
+	}
 
-func (t *Temperature) StartNotify() (chan float64, error) {
-	return t.notify(ambientDegreeCelsius, "service0022/char0023") //TODO
+	// enable the sensor
+	if err := t.enable(); err != nil {
+		return nil, err
+	}
+
+	return t.notify(ambientDegreeCelsius)
 }
 
 // converts the raw ambient temperature value into °C
