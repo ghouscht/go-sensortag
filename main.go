@@ -46,12 +46,10 @@ func main() {
 	}
 
 	if dev == nil {
-		// TODO retry getDeviceByAddress
 		log.Fatal("device not found")
 	}
 
 	if err := dev.Connect(); err != nil {
-		// TODO retry connect
 		log.Fatal(errors.Wrap(err, "failed to connect"))
 	}
 	log.Infow(
