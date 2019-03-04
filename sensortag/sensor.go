@@ -8,9 +8,6 @@ import (
 )
 
 type sensorConfig struct {
-	name string
-	unit string
-
 	cfg    *profile.GattCharacteristic1
 	data   *profile.GattCharacteristic1
 	period *profile.GattCharacteristic1
@@ -19,17 +16,20 @@ type sensorConfig struct {
 // Sensor is an interface for sensortag sensors.
 type Sensor interface {
 	StartNotify([]byte) (chan SensorEvent, error)
-	//EnableNotify([]byte) error
+	convert([]byte) *[]SensorEvent
 }
 
 // SensorEvent ...
 type SensorEvent struct {
 	Name  string  `json:"name"`
 	Unit  string  `json:"unit"`
-	Value float64 `json:"value"`
+	Value float64 `json:"value,omitempty"`
+	X     float64 `json:"x,omitempty"`
+	Y     float64 `json:"y,omitempty"`
+	Z     float64 `json:"z,omitempty"`
 }
 
-type conversionFunc func([]byte) float64
+type conversionFunc func([]byte) *[]SensorEvent
 
 // NewSensorConfig returns a pointer to an initialized sensor config.
 func (tag *SensorTag) NewSensorConfig(uuid uuid.UUID) (*sensorConfig, error) {
@@ -97,10 +97,12 @@ func (s *sensorConfig) notify(conversion conversionFunc) (chan SensorEvent, erro
 
 			rawData := body["Value"].Value().([]byte)
 
-			dataC <- SensorEvent{
-				Name:  s.name,
-				Unit:  s.unit,
-				Value: conversion(rawData),
+			// get all the measurements of the sensor and write them to the data chan
+			measurements := conversion(rawData)
+			if measurements != nil {
+				for _, measurement := range *measurements {
+					dataC <- measurement
+				}
 			}
 		}
 	}()
@@ -117,9 +119,9 @@ func (s *sensorConfig) setPeriod(period []byte) error {
 	return nil
 }
 
-func (s *sensorConfig) enable() error {
+func (s *sensorConfig) enable(value []byte) error {
 	options := make(map[string]dbus.Variant)
-	if err := s.cfg.WriteValue([]byte{0x1}, options); err != nil {
+	if err := s.cfg.WriteValue(value, options); err != nil {
 		return errors.Wrap(err, "failed to enable")
 	}
 	return nil

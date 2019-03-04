@@ -7,7 +7,7 @@ type UUID struct {
 	Period string
 }
 
-var Temperature = UUID{
+var IRTemperature = UUID{
 	Data:   "F000AA01-0451-4000-B000-000000000000",
 	Config: "F000AA02-0451-4000-B000-000000000000",
 	Period: "F000AA03-0451-4000-B000-000000000000",
@@ -35,4 +35,10 @@ var IO = UUID{
 	Data:   "F000AA65-0451-4000-b000-000000000000",
 	Config: "F000AA66-0451-4000-B000-000000000000",
 	Period: "", // i/o has no period
+}
+
+var Movement = UUID{
+	Data:   "F000AA81-0451-4000-b000-000000000000",
+	Config: "F000AA82-0451-4000-b000-000000000000",
+	Period: "F000AA83-0451-4000-b000-000000000000",
 }

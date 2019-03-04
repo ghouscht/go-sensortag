@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	log *zap.SugaredLogger
+	log     *zap.SugaredLogger
+	dev     *api.Device
+	tagAddr string
 )
 
 func main() {
@@ -29,7 +31,7 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("missing tag address as argument")
 	}
-	tagAddr := os.Args[1]
+	tagAddr = os.Args[1]
 
 	stopC := make(chan os.Signal, 1)
 	signal.Notify(stopC, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM)
@@ -38,7 +40,7 @@ func main() {
 		"connecting...",
 		"tag", tagAddr,
 	)
-	dev, err := api.GetDeviceByAddress(tagAddr)
+	dev, err = api.GetDeviceByAddress(tagAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +54,6 @@ func main() {
 		// TODO retry connect
 		log.Fatal(errors.Wrap(err, "failed to connect"))
 	}
-
 	log.Infow(
 		"connected!",
 		"tag", tagAddr,
@@ -71,9 +72,9 @@ func main() {
 	// Sensors
 	period := []byte{0xFF} // == 2.5s
 
-	tempC, err := sensorTag.Temperature.StartNotify(period)
+	irtempC, err := sensorTag.IRTemperature.StartNotify(period)
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "failed to enable notifications for temperature sensor"))
+		log.Fatal(errors.Wrap(err, "failed to enable notifications for ir temperature sensor"))
 	}
 
 	humC, err := sensorTag.Humidity.StartNotify(period)
@@ -91,35 +92,42 @@ func main() {
 		log.Fatal(errors.Wrap(err, "failed to enable notifications for barometer sensor"))
 	}
 
-main:
-	for {
-		select {
-		case t := <-tempC:
-			printData(t)
-		case h := <-humC:
-			printData(h)
-		case o := <-optC:
-			printData(o)
-		case b := <-baroC:
-			printData(b)
-		case <-stopC:
-			log.Infow(
-				"disconnecting...",
-				"tag", tagAddr,
-			)
-
-			if err := dev.Disconnect(); err != nil {
-				log.Fatal(errors.Wrap(err, "failed to disconnect"))
-			}
-			break main
-		}
+	moveC, err := sensorTag.Movement.StartNotify(period)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "failed to enable notifications for movement sensor"))
 	}
+
+	// blocks until signal from stopC
+	dataPrinter(stopC, humC, optC, baroC, irtempC, moveC)
 }
 
-func printData(data interface{}) {
-	if output, err := json.Marshal(data); err != nil {
-		log.Error(err)
-	} else {
-		fmt.Println(string(output))
+func dataPrinter(stop chan os.Signal, events ...chan sensortag.SensorEvent) {
+	for {
+		for _, event := range events {
+			// setup a go routine to read each chan and print it's data to stdout
+			go func(e chan sensortag.SensorEvent) {
+				for {
+					data := <-e
+					if output, err := json.Marshal(data); err != nil {
+						log.Error(err)
+					} else {
+						fmt.Printf("%s\n", output)
+					}
+
+				}
+			}(event)
+		}
+
+		<-stop // block until we receive a stop signal
+		log.Infow(
+			"disconnecting...",
+			"tag", tagAddr,
+		)
+		//TODO: clean stop
+
+		if err := dev.Disconnect(); err != nil {
+			log.Fatal(errors.Wrap(err, "failed to disconnect"))
+		}
+		break
 	}
 }

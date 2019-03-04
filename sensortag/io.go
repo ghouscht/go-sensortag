@@ -39,7 +39,7 @@ func (io *InputOutput) Write(data []byte) error {
 		return errors.Wrap(err, "failed to write data")
 	}
 
-	if err := io.enable(); err != nil {
+	if err := io.enable([]byte{0x1}); err != nil {
 		return err
 	}
 

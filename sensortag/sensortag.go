@@ -13,15 +13,16 @@ import (
 type SensorTag struct {
 	device *api.Device
 
-	Temperature Sensor
-	Humidity    Sensor
-	Barometer   Sensor
-	Optical     Sensor
+	IRTemperature Sensor
+	Humidity      Sensor
+	Barometer     Sensor
+	Optical       Sensor
+	Movement      Sensor
 
 	IO InputOutput
 }
 
-// New creates and initializes a new SensorTag instance
+// New creates and initializes a new SensorTag instance.
 func New(dev *api.Device) (*SensorTag, error) {
 	tag := new(SensorTag)
 
@@ -32,11 +33,11 @@ func New(dev *api.Device) (*SensorTag, error) {
 	tag.device = dev
 
 	// Sensor initialization
-	tempSensor, err := tag.NewSensorConfig(uuid.Temperature)
+	irtempSensor, err := tag.NewSensorConfig(uuid.IRTemperature)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize temperature sensor")
+		return nil, errors.Wrap(err, "failed to initialize ir temperature sensor")
 	}
-	tag.Temperature = NewTemperature(tempSensor)
+	tag.IRTemperature = NewIRTemperature(irtempSensor)
 
 	humSensor, err := tag.NewSensorConfig(uuid.Humidity)
 	if err != nil {
@@ -52,9 +53,15 @@ func New(dev *api.Device) (*SensorTag, error) {
 
 	baroSensor, err := tag.NewSensorConfig(uuid.Barometer)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize pressure sensor")
+		return nil, errors.Wrap(err, "failed to initialize barometer sensor")
 	}
 	tag.Barometer = NewBarometer(baroSensor)
+
+	moveSensor, err := tag.NewSensorConfig(uuid.Movement)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize movement sensor")
+	}
+	tag.Movement = NewMovement(moveSensor)
 
 	// i/o is a bit special...
 	io, err := tag.NewIO(uuid.IO)
@@ -65,9 +72,3 @@ func New(dev *api.Device) (*SensorTag, error) {
 
 	return tag, err
 }
-
-/*
-func (tag *SensorTag) GetNotifications() (chan dbus.Signal, error) {
-
-}
-*/

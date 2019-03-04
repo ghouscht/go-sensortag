@@ -12,9 +12,6 @@ type Humidity struct {
 var _ Sensor = &Humidity{}
 
 func NewHumidity(s *sensorConfig) *Humidity {
-	s.name = "Humidity"
-	s.unit = "%"
-
 	return &Humidity{s}
 }
 
@@ -24,28 +21,32 @@ func (h *Humidity) StartNotify(period []byte) (chan SensorEvent, error) {
 	}
 
 	// enable the sensor
-	if err := h.enable(); err != nil {
+	if err := h.enable([]byte{0x1}); err != nil {
 		return nil, err
 	}
 
-	return h.notify(humidityRelative)
+	return h.notify(h.convert)
 }
 
 // converts the raw humidity value into a percent value
-func humidityRelative(b []byte) float64 {
-	if len(b) != 4 {
-		return -1
+func (h *Humidity) convert(data []byte) *[]SensorEvent {
+	if len(data) != 4 {
+		return nil
 	}
 
-	return float64(binary.LittleEndian.Uint16(b[2:])) * 100 / 65536.0
-}
+	temp := -40 + ((165 * float64(binary.LittleEndian.Uint16(data[:2]))) / 65536.0)
+	hum := float64(binary.LittleEndian.Uint16(data[2:])) * 100 / 65536.0
 
-/*
-func HumidityDegreeCelsius(b []byte) float64 {
-	if len(b) != 4 {
-		return -1
+	return &[]SensorEvent{
+		SensorEvent{
+			Name:  "AmbientTemperature",
+			Unit:  "°C",
+			Value: temp,
+		},
+		SensorEvent{
+			Name:  "Humidity",
+			Unit:  "%",
+			Value: hum,
+		},
 	}
-
-	return -40 + ((165 * float64(binary.LittleEndian.Uint16(b[:2]))) / 65536.0)
 }
-*/
