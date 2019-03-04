@@ -1,7 +1,11 @@
 # go-sensortag
 ## Setup
+A few simple seteps need to be done, prior to run `go-sensortag`.
 ### dbus profiles
-File: `/etc/dbus-1/system.d/dbus-go-bluetooth-dev.conf`
+Two dbus profiles need to be created:  
+
+File: `/etc/dbus-1/system.d/dbus-go-bluetooth-dev.conf` owner: root group: root mode: 0644  
+Content:
 ```
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
 <busconfig>
@@ -35,7 +39,8 @@ File: `/etc/dbus-1/system.d/dbus-go-bluetooth-dev.conf`
 </busconfig>
 ```
 
-File: `/etc/dbus-1/system.d/dbus-go-bluetooth-service.conf`
+File: `/etc/dbus-1/system.d/dbus-go-bluetooth-service.conf` owner: root group: root mode: 0644  
+Content:
 ```
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
 <busconfig>
@@ -56,6 +61,18 @@ File: `/etc/dbus-1/system.d/dbus-go-bluetooth-service.conf`
 ```
 
 ### hciconfig acces
+Enable access to the hciconfig binary for all users:
 ```bash
 sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hciconfig`
+```
+
+## Run
+First you need to find the MAC address of your sensortag:
+```bash
+sudo hcitool lescan
+```
+
+With the MAC address you should now be able to run `go-sensortag`:
+```bash
+./go-sensortag 54:6C:0E:FF:FF:FF
 ```
