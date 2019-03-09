@@ -67,6 +67,11 @@ sudo setcap 'cap_net_raw,cap_net_admin+eip' `which hciconfig`
 ```
 
 ## Run
+Make sure bluetooth is running:
+```bash
+sudo service bluetooth status
+```
+
 First you need to find the MAC address of your sensortag:
 ```bash
 sudo hcitool lescan
