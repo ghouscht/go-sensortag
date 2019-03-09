@@ -72,7 +72,7 @@ func showDeviceInfo(dev *api.Device) {
 		log.Errorf("failed to get properties from device %s: %s", dev.Path, err)
 		return
 	}
-	fmt.Printf("%s rssi=%d name=%s\n", props.Address, props.RSSI, props.Name)
+	fmt.Printf("%s rssi=%d %s\n", props.Address, props.RSSI, props.Name)
 }
 
 func init() {
