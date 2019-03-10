@@ -16,7 +16,7 @@ func NewMovement(s *sensorConfig) *Movement {
 	return &Movement{s}
 }
 
-func (m *Movement) StartNotify(period []byte) (chan SensorEvent, error) {
+func (m *Movement) StartNotify(period []byte) (<-chan SensorEvent, error) {
 	if err := m.setPeriod(period); err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/ghouscht/go-sensortag/sensortag"
@@ -13,19 +14,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	tagAddr string
-)
-
 var connectCmd = &cobra.Command{
 	Use:   "connect ADDRESS",
 	Short: "connects to a sensortag by address",
 	Long:  ``,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		defer api.Exit()
-
-		tagAddr = args[0]
+		tagAddr := args[0]
 
 		stopC := make(chan os.Signal, 1)
 		signal.Notify(stopC, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM)
@@ -76,7 +71,7 @@ var connectCmd = &cobra.Command{
 
 		optC, err := sensorTag.Optical.StartNotify(period)
 		if err != nil {
-			log.Fatal(errors.Wrap(err, "failed to enable notifications for humidity sensor"))
+			log.Fatal(errors.Wrap(err, "failed to enable notifications for optical sensor"))
 		}
 
 		baroC, err := sensorTag.Barometer.StartNotify(period)
@@ -89,41 +84,62 @@ var connectCmd = &cobra.Command{
 			log.Fatal(errors.Wrap(err, "failed to enable notifications for movement sensor"))
 		}
 
-		// blocks until signal from stopC
-		dataPrinter(stopC, dev, humC, optC, baroC, irtempC, moveC)
+		events := merge(irtempC, humC, optC, baroC, moveC)
+	main:
+		for {
+			select {
+			case event, ok := <-events:
+				if output, err := json.Marshal(event); err != nil {
+					log.Error(err)
+				} else {
+					fmt.Printf("%s\n", output)
+				}
 
+				if !ok { // events chan was closed, exit
+					events = nil
+					stopC <- syscall.SIGTERM
+				}
+			case sig := <-stopC:
+				log.Infow(
+					"disconnecting...",
+					"tag", tagAddr,
+					"signal", sig,
+				)
+				if err := dev.Disconnect(); err != nil {
+					log.Fatal(errors.Wrap(err, "failed to disconnect"))
+				}
+
+				log.Infow(
+					"disconnected",
+					"tag", tagAddr,
+				)
+				break main
+			}
+		}
 	},
 }
 
-func dataPrinter(stop chan os.Signal, dev *api.Device, events ...chan sensortag.SensorEvent) {
-	for {
-		for _, event := range events {
-			// setup a go routine to read each chan and print it's data to stdout
-			go func(e chan sensortag.SensorEvent) {
-				for {
-					data := <-e
-					if output, err := json.Marshal(data); err != nil {
-						log.Error(err)
-					} else {
-						fmt.Printf("%s\n", output)
-					}
+func merge(events ...<-chan sensortag.SensorEvent) <-chan sensortag.SensorEvent {
+	out := make(chan sensortag.SensorEvent)
 
-				}
-			}(event)
-		}
+	var wg sync.WaitGroup
+	wg.Add(len(events))
 
-		<-stop // block until we receive a stop signal
-		log.Infow(
-			"disconnecting...",
-			"tag", tagAddr,
-		)
-		//TODO: clean stop
-
-		if err := dev.Disconnect(); err != nil {
-			log.Fatal(errors.Wrap(err, "failed to disconnect"))
-		}
-		break
+	for _, event := range events {
+		go func(event <-chan sensortag.SensorEvent) {
+			for v := range event {
+				out <- v
+			}
+			wg.Done()
+		}(event)
 	}
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	return out
 }
 
 func init() {

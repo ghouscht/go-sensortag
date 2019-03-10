@@ -16,7 +16,7 @@ func NewOptical(s *sensorConfig) *Optical {
 	return &Optical{s}
 }
 
-func (o *Optical) StartNotify(period []byte) (chan SensorEvent, error) {
+func (o *Optical) StartNotify(period []byte) (<-chan SensorEvent, error) {
 	if err := o.setPeriod(period); err != nil {
 		return nil, err
 	}

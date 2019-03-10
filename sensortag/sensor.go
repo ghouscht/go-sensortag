@@ -15,7 +15,7 @@ type sensorConfig struct {
 
 // Sensor is an interface for sensortag sensors.
 type Sensor interface {
-	StartNotify([]byte) (chan SensorEvent, error)
+	StartNotify([]byte) (<-chan SensorEvent, error)
 	convert([]byte) *[]SensorEvent
 }
 
@@ -55,7 +55,7 @@ func (tag *SensorTag) NewSensorConfig(uuid uuid.UUID) (*sensorConfig, error) {
 	}, nil
 }
 
-func (s *sensorConfig) notify(conversion conversionFunc) (chan SensorEvent, error) {
+func (s *sensorConfig) notify(conversion conversionFunc) (<-chan SensorEvent, error) {
 	dataC := make(chan SensorEvent)
 
 	if err := s.data.StartNotify(); err != nil {

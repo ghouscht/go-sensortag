@@ -16,7 +16,7 @@ func NewBarometer(s *sensorConfig) *Barometer {
 }
 
 // StartNotify enables and starts notification from the barometer.
-func (b *Barometer) StartNotify(period []byte) (chan SensorEvent, error) {
+func (b *Barometer) StartNotify(period []byte) (<-chan SensorEvent, error) {
 	if err := b.setPeriod(period); err != nil {
 		return nil, err
 	}

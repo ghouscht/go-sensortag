@@ -15,7 +15,7 @@ func NewIRTemperature(s *sensorConfig) *IRTemperature {
 	return &IRTemperature{s}
 }
 
-func (t *IRTemperature) StartNotify(period []byte) (chan SensorEvent, error) {
+func (t *IRTemperature) StartNotify(period []byte) (<-chan SensorEvent, error) {
 	if err := t.setPeriod(period); err != nil {
 		return nil, err
 	}

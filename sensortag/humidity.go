@@ -15,7 +15,7 @@ func NewHumidity(s *sensorConfig) *Humidity {
 	return &Humidity{s}
 }
 
-func (h *Humidity) StartNotify(period []byte) (chan SensorEvent, error) {
+func (h *Humidity) StartNotify(period []byte) (<-chan SensorEvent, error) {
 	if err := h.setPeriod(period); err != nil {
 		return nil, err
 	}
