@@ -1,0 +1,23 @@
+before:
+  hooks:
+    - go mod download
+builds:
+- goos:
+    - linux
+  goarch:
+    - amd64
+    - arm
+archive:
+  replacements:
+    amd64: x86_64
+    arm: arm
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
