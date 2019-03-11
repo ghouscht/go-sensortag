@@ -7,11 +7,16 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/ghouscht/go-sensortag/sensortag"
 	"github.com/muka/go-bluetooth/api"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+)
+
+var (
+	connCheckInterval time.Duration
 )
 
 var connectCmd = &cobra.Command{
@@ -22,8 +27,13 @@ var connectCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		tagAddr := args[0]
 
+		// channel to signal graceful stop
 		stopC := make(chan os.Signal, 1)
 		signal.Notify(stopC, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM)
+
+		// we never notice if we lose connection to the sensortag, setup a ticker
+		// to regularly check if the connection is still ok
+		ticker := time.NewTicker(connCheckInterval)
 
 		log.Infow(
 			"connecting...",
@@ -88,7 +98,7 @@ var connectCmd = &cobra.Command{
 	main:
 		for {
 			select {
-			case event, ok := <-events:
+			case event, ok := <-events: // print events to stdout
 				if output, err := json.Marshal(event); err != nil {
 					log.Error(err)
 				} else {
@@ -99,7 +109,12 @@ var connectCmd = &cobra.Command{
 					events = nil
 					stopC <- syscall.SIGTERM
 				}
-			case sig := <-stopC:
+			case <-ticker.C: // check connection
+				// if the sensortag isn't connected anymore exit with error
+				if !dev.IsConnected() {
+					log.Fatalf("lost connection to sensortag %s", tagAddr)
+				}
+			case sig := <-stopC: // handle stop signal
 				log.Infow(
 					"disconnecting...",
 					"tag", tagAddr,
@@ -143,5 +158,6 @@ func merge(events ...<-chan sensortag.SensorEvent) <-chan sensortag.SensorEvent 
 }
 
 func init() {
+	connectCmd.Flags().DurationVar(&connCheckInterval, "conn-check-interval", 10*time.Second, "interval to check if the sensortag is still connected")
 	rootCmd.AddCommand(connectCmd)
 }
