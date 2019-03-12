@@ -17,6 +17,7 @@ import (
 
 var (
 	connCheckInterval time.Duration
+	enableLED         bool
 )
 
 var connectCmd = &cobra.Command{
@@ -61,9 +62,11 @@ var connectCmd = &cobra.Command{
 			log.Fatal(errors.Wrap(err, "failed to create sensortag instance"))
 		}
 
-		// enable the green LED, to signal connection
-		if err := sensorTag.IO.Write([]byte{0x02}); err != nil {
-			log.Errorw("Error failed to enable IOs, %s\n", err)
+		if enableLED {
+			// enable the green LED, to signal connection
+			if err := sensorTag.IO.Write([]byte{0x02}); err != nil {
+				log.Errorw("Error failed to enable IOs, %s\n", err)
+			}
 		}
 
 		// Sensors
@@ -159,5 +162,6 @@ func merge(events ...<-chan sensortag.SensorEvent) <-chan sensortag.SensorEvent 
 
 func init() {
 	connectCmd.Flags().DurationVar(&connCheckInterval, "conn-check-interval", 10*time.Second, "interval to check if the sensortag is still connected")
+	connectCmd.Flags().BoolVar(&enableLED, "enable-led", false, "enable green led when connected (increases power consumption a lot!)")
 	rootCmd.AddCommand(connectCmd)
 }
