@@ -17,7 +17,7 @@ import (
 
 var (
 	connCheckInterval time.Duration
-	enableLED         bool
+	blinkInterval     time.Duration
 )
 
 var connectCmd = &cobra.Command{
@@ -34,7 +34,10 @@ var connectCmd = &cobra.Command{
 
 		// we never notice if we lose connection to the sensortag, setup a ticker
 		// to regularly check if the connection is still ok
-		ticker := time.NewTicker(connCheckInterval)
+		connCheck := time.NewTicker(connCheckInterval)
+
+		// blink interval
+		blink := time.NewTicker(blinkInterval)
 
 		log.Infow(
 			"connecting...",
@@ -60,13 +63,6 @@ var connectCmd = &cobra.Command{
 		sensorTag, err := sensortag.New(dev)
 		if err != nil {
 			log.Fatal(errors.Wrap(err, "failed to create sensortag instance"))
-		}
-
-		if enableLED {
-			// enable the green LED, to signal connection
-			if err := sensorTag.IO.Write([]byte{0x02}); err != nil {
-				log.Errorw("Error failed to enable IOs, %s\n", err)
-			}
 		}
 
 		// Sensors
@@ -112,7 +108,19 @@ var connectCmd = &cobra.Command{
 					events = nil
 					stopC <- syscall.SIGTERM
 				}
-			case <-ticker.C: // check connection
+			case <-blink.C: // blink led
+				go func() {
+					// enable
+					if err := sensorTag.IO.Write([]byte{0x02}); err != nil {
+						log.Error("failed to enable led, %s\n", err)
+					}
+					time.Sleep(time.Millisecond * 500)
+					//disable
+					if err := sensorTag.IO.Write([]byte{0x00}); err != nil {
+						log.Error("failed to disable led, %s\n", err)
+					}
+				}()
+			case <-connCheck.C: // check connection
 				// if the sensortag isn't connected anymore exit with error
 				if !dev.IsConnected() {
 					log.Fatalf("lost connection to sensortag %s", tagAddr)
@@ -162,6 +170,6 @@ func merge(events ...<-chan sensortag.SensorEvent) <-chan sensortag.SensorEvent 
 
 func init() {
 	connectCmd.Flags().DurationVar(&connCheckInterval, "conn-check-interval", 10*time.Second, "interval to check if the sensortag is still connected")
-	connectCmd.Flags().BoolVar(&enableLED, "enable-led", false, "enable green led when connected (increases power consumption a lot!)")
+	connectCmd.Flags().DurationVar(&blinkInterval, "blink-interval", 10*time.Second, "blink interval of sensortag led when connected")
 	rootCmd.AddCommand(connectCmd)
 }
