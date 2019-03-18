@@ -40,7 +40,7 @@ func (t *IRTemperature) convert(data []byte) *[]SensorEvent {
 		SensorEvent{
 			Name:  "IRTemperature",
 			Unit:  "°C",
-			Value: temp,
+			Value: &temp,
 		},
 	}
 }

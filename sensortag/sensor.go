@@ -21,12 +21,15 @@ type Sensor interface {
 
 // SensorEvent ...
 type SensorEvent struct {
-	Name  string  `json:"name"`
-	Unit  string  `json:"unit"`
-	Value float64 `json:"value,omitempty"`
-	X     float64 `json:"x,omitempty"`
-	Y     float64 `json:"y,omitempty"`
-	Z     float64 `json:"z,omitempty"`
+	Name  string   `json:"name"`
+	Unit  string   `json:"unit"`
+	Value *float64 `json:"value,omitempty"`
+
+	// X,Y,Z are only set from the movement sensor, hide it's fields
+	// if no value is set. Use a pointer so the zero value is displayed too.
+	X *float64 `json:"x,omitempty"`
+	Y *float64 `json:"y,omitempty"`
+	Z *float64 `json:"z,omitempty"`
 }
 
 type conversionFunc func([]byte) *[]SensorEvent

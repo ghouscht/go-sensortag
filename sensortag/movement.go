@@ -55,35 +55,35 @@ func (m *Movement) convert(data []byte) *[]SensorEvent {
 
 	events := []SensorEvent{}
 
-	if xG != 0 || yG != 0 || zG != 0 {
-		events = append(events, SensorEvent{
-			Name: "Gyroscope",
-			Unit: "deg/s",
-			X:    float64(uint16(xG)) / 128.0,
-			Y:    float64(uint16(yG)) / 128.0,
-			Z:    float64(uint16(zG)) / 128.0,
-		})
-	}
+	events = append(events, SensorEvent{
+		Name: "Gyroscope",
+		Unit: "deg/s",
+		X:    pointTo(float64(uint16(xG)) / 128.0),
+		Y:    pointTo(float64(uint16(yG)) / 128.0),
+		Z:    pointTo(float64(uint16(zG)) / 128.0),
+	})
 
-	if xA != 0 || yA != 0 || zA != 0 {
-		events = append(events, SensorEvent{
-			Name: "Accelerometer",
-			Unit: "G",
-			X:    float64(uint16(xA)) / (8192.0 * 2), // 4G
-			Y:    float64(uint16(yA)) / (8192.0 * 2), // 4G
-			Z:    float64(uint16(zA)) / (8192.0 * 2), // 4G
-		})
-	}
+	events = append(events, SensorEvent{
+		Name: "Accelerometer",
+		Unit: "G",
+		X:    pointTo(float64(uint16(xA)) / (8192.0 * 2)), // 4G
+		Y:    pointTo(float64(uint16(yA)) / (8192.0 * 2)), // 4G
+		Z:    pointTo(float64(uint16(zA)) / (8192.0 * 2)), // 4G
+	})
 
-	if xM != 0 || yM != 0 || zM != 0 {
-		events = append(events, SensorEvent{
-			Name: "Magnetometer",
-			Unit: "uT",
-			X:    float64(uint16(xM)),
-			Y:    float64(uint16(yM)),
-			Z:    float64(uint16(zM)),
-		})
+	events = append(events, SensorEvent{
+		Name: "Magnetometer",
+		Unit: "uT",
+		X:    pointTo(float64(uint16(xM))),
+		Y:    pointTo(float64(uint16(yM))),
+		Z:    pointTo(float64(uint16(zM))),
+	})
 
-	}
 	return &events
+}
+
+// little helper to get a pointer to a float as go does not allow
+// to take the address of a numeric constant
+func pointTo(f float64) *float64 {
+	return &f
 }

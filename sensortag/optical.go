@@ -44,7 +44,7 @@ func (o *Optical) convert(data []byte) *[]SensorEvent {
 		SensorEvent{
 			Name:  "AmbientLight",
 			Unit:  "Lux",
-			Value: lux,
+			Value: &lux,
 		},
 	}
 }

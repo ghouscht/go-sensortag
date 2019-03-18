@@ -73,10 +73,12 @@ var connectCmd = &cobra.Command{
 			log.Fatal(errors.Wrap(err, "failed to enable notifications for ir temperature sensor"))
 		}
 
-		humC, err := sensorTag.Humidity.StartNotify(period)
-		if err != nil {
-			log.Fatal(errors.Wrap(err, "failed to enable notifications for humidity sensor"))
-		}
+		/*
+			humC, err := sensorTag.Humidity.StartNotify(period)
+			if err != nil {
+				log.Fatal(errors.Wrap(err, "failed to enable notifications for humidity sensor"))
+			}
+		*/
 
 		optC, err := sensorTag.Optical.StartNotify(period)
 		if err != nil {
@@ -93,7 +95,7 @@ var connectCmd = &cobra.Command{
 			log.Fatal(errors.Wrap(err, "failed to enable notifications for movement sensor"))
 		}
 
-		events := merge(irtempC, humC, optC, baroC, moveC)
+		events := merge(irtempC, optC, baroC, moveC)
 	main:
 		for {
 			select {

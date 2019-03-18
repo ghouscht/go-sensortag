@@ -41,12 +41,12 @@ func (h *Humidity) convert(data []byte) *[]SensorEvent {
 		SensorEvent{
 			Name:  "AmbientTemperature",
 			Unit:  "°C",
-			Value: temp,
+			Value: &temp,
 		},
 		SensorEvent{
 			Name:  "Humidity",
 			Unit:  "%",
-			Value: hum,
+			Value: &hum,
 		},
 	}
 }

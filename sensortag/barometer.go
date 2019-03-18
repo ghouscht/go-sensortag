@@ -43,7 +43,7 @@ func (b *Barometer) convert(data []byte) *[]SensorEvent {
 		SensorEvent{
 			Name:  "Barometer",
 			Unit:  "hPa",
-			Value: pressure,
+			Value: &pressure,
 		},
 	}
 }
