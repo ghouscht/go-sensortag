@@ -1,6 +1,7 @@
 package sensortag
 
 import (
+	"bytes"
 	"encoding/binary"
 )
 
@@ -36,47 +37,56 @@ func (m *Movement) StartNotify(period []byte) (<-chan SensorEvent, error) {
 	return m.notify(m.convert)
 }
 
+func readInt16(data []byte) int16 {
+	var value int16
+
+	buf := bytes.NewBuffer(data)
+	binary.Read(buf, binary.LittleEndian, &value)
+
+	return value
+}
+
 func (m *Movement) convert(data []byte) *[]SensorEvent {
 	if len(data) != 18 {
 		return nil
 	}
 
-	xG := binary.LittleEndian.Uint16(data[0:2])
-	yG := binary.LittleEndian.Uint16(data[2:4])
-	zG := binary.LittleEndian.Uint16(data[4:6])
+	xG := readInt16(data[0:2])
+	yG := readInt16(data[2:4])
+	zG := readInt16(data[4:6])
 
-	xA := binary.LittleEndian.Uint16(data[6:8])
-	yA := binary.LittleEndian.Uint16(data[8:10])
-	zA := binary.LittleEndian.Uint16(data[10:12])
+	xA := readInt16(data[6:8])
+	yA := readInt16(data[8:10])
+	zA := readInt16(data[10:12])
 
-	xM := binary.LittleEndian.Uint16(data[12:14])
-	yM := binary.LittleEndian.Uint16(data[14:16])
-	zM := binary.LittleEndian.Uint16(data[16:18])
+	xM := readInt16(data[12:14])
+	yM := readInt16(data[14:16])
+	zM := readInt16(data[16:18])
 
 	events := []SensorEvent{}
 
 	events = append(events, SensorEvent{
 		Name: "Gyroscope",
 		Unit: "deg/s",
-		X:    pointTo(float64(uint16(xG)) / 128.0),
-		Y:    pointTo(float64(uint16(yG)) / 128.0),
-		Z:    pointTo(float64(uint16(zG)) / 128.0),
+		X:    pointTo(float64(xG) / 128.0),
+		Y:    pointTo(float64(yG) / 128.0),
+		Z:    pointTo(float64(zG) / 128.0),
 	})
 
 	events = append(events, SensorEvent{
 		Name: "Accelerometer",
 		Unit: "G",
-		X:    pointTo(float64(uint16(xA)) / (8192.0 * 2)), // 4G
-		Y:    pointTo(float64(uint16(yA)) / (8192.0 * 2)), // 4G
-		Z:    pointTo(float64(uint16(zA)) / (8192.0 * 2)), // 4G
+		X:    pointTo(float64(xA) / 8192.0), // 4G
+		Y:    pointTo(float64(yA) / 8192.0), // 4G
+		Z:    pointTo(float64(zA) / 8192.0), // 4G
 	})
 
 	events = append(events, SensorEvent{
 		Name: "Magnetometer",
 		Unit: "uT",
-		X:    pointTo(float64(uint16(xM))),
-		Y:    pointTo(float64(uint16(yM))),
-		Z:    pointTo(float64(uint16(zM))),
+		X:    pointTo(float64(xM)),
+		Y:    pointTo(float64(yM)),
+		Z:    pointTo(float64(zM)),
 	})
 
 	return &events
